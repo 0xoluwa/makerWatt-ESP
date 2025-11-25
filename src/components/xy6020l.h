@@ -25,7 +25,6 @@
 #define xy6020l_h
 
 #include "Arduino.h"
-#include "xy6020lTypes.h"
 
 // the XY6020 provides 31 holding registers
 #define HOLD_REGS 31
@@ -219,7 +218,7 @@ class xy6020l
       bool switch_preset(uint8_t value) {return write_a_single_register(HREG_IDX_MEMORY, value);}
 
       bool set_preset(tMemory &presetStruct);
-      
+
     private:
       /**
        * @brief Calculates the crc16 checksum 
