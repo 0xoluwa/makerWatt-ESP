@@ -9,7 +9,7 @@ bool xy6020l::read_hold_register_data(uint16_t holding_reg_start_addr, uint16_t 
 
   //setup a temporary tx buffer
   uint8_t txDataBuf[8];
-  txDataBuf[0] = DEFAULT_SLAVE_ADDRESS;
+  txDataBuf[0] = _slave_address;
   txDataBuf[1] = FUNC_CODE_READ_HOLD_REG;
   txDataBuf[2] = holding_reg_start_addr >> 8;
   txDataBuf[3] = holding_reg_start_addr & 0xFF;
@@ -42,7 +42,7 @@ bool xy6020l::read_hold_register_data(uint16_t holding_reg_start_addr, uint16_t 
 bool xy6020l::write_a_single_register(uint16_t reg_address, uint16_t value){
   if (!serialHandle) return false;
   
-  serialHandle->setTimeout(10);
+  serialHandle->setTimeout(40);
 
   uint8_t txDataBuf[8];
   txDataBuf[0] = _slave_address;
@@ -126,7 +126,7 @@ bool xy6020l::write_multiple_registers(uint16_t holding_reg_start_addr, uint16_t
 bool xy6020l::get_all_hold_regs(){
   bool response = read_hold_register_data(HREG_IDX_CV, 30);
 
-  if (!response) return false;
+  if (!response) return response;
 
   for (int data = 0; data < 60; data++){
     all_hold_reg_data[data] = response_temp_buf[data + 3];
@@ -151,4 +151,80 @@ uint16_t xy6020l::crc16_calculator(uint8_t *data, uint8_t length) {
         }
     }
     return crc;
+}
+
+bool xy6020l::fetch_preset(tMemory &presetStruct){
+  if (presetStruct.num >= 10) return false;
+
+  uint16_t start_address = HREG_IDX_M0 + (presetStruct.num * HREG_IDX_M_OFFSET);
+
+  bool response = read_hold_register_data(start_address, MEM_REGS);
+
+  if(!response) return response;
+
+  presetStruct.VSet = (response_temp_buf[3] << 8) | response_temp_buf[4];
+  presetStruct.ISet = (response_temp_buf[5] << 8) | response_temp_buf[6];
+  presetStruct.sLVP = (response_temp_buf[7] << 8) | response_temp_buf[8];
+  presetStruct.sOVP = (response_temp_buf[9] << 8) | response_temp_buf[10];
+  presetStruct.sOCP = (response_temp_buf[11] << 8) | response_temp_buf[12];
+  presetStruct.sOPP = (response_temp_buf[13] << 8) | response_temp_buf[14];
+  presetStruct.sOHPh = (response_temp_buf[15] << 8) | response_temp_buf[16];
+  presetStruct.sOHPm = (response_temp_buf[17] << 8) | response_temp_buf[18];
+
+  uint16_t sOAH_low = (response_temp_buf[19] << 8) | response_temp_buf[20];
+  uint16_t sOAH_high = (response_temp_buf[21] << 8) | response_temp_buf[22];
+  presetStruct.sOAH = ((uint32_t)sOAH_high << 16) | sOAH_low;
+
+  uint16_t sOWH_low = (response_temp_buf[23] << 8) | response_temp_buf[24];
+  uint16_t sOWH_high = (response_temp_buf[25] << 8) | response_temp_buf[26];
+  presetStruct.sOWH = ((uint32_t)sOWH_high << 16) | sOWH_low;
+
+  presetStruct.sOTP = (response_temp_buf[27] << 8) | response_temp_buf[28];
+  presetStruct.sINI = (response_temp_buf[29] << 8) | response_temp_buf[30];
+
+  return true;
+}
+
+bool xy6020l::set_preset(tMemory &preset){
+  if (preset.num >= 10) return false;
+  uint16_t start_address = HREG_IDX_M0 + (preset.num * HREG_IDX_M_OFFSET);
+
+  uint8_t temp_data_buf[MEM_REGS * 2] = {
+                                      preset.VSet >> 8,
+                                      preset.VSet & 0xFF,
+                                      preset.ISet >> 8,
+                                      preset.ISet & 0xFF,
+                                      preset.sLVP >> 8,
+                                      preset.sLVP & 0xFF,
+                                      preset.sOVP >> 8,
+                                      preset.sOVP & 0xFF,
+                                      preset.sOCP >> 8,
+                                      preset.sOCP & 0xFF,
+                                      preset.sOPP >> 8,
+                                      preset.sOPP & 0xFF,
+                                      preset.sOHPh >> 8,
+                                      preset.sOHPh & 0xFF,
+                                      preset.sOHPm >> 8,
+                                      preset.sOHPm & 0xFF,
+                                      (preset.sOAH & 0xFFFF) >> 8,  //low 16 bytes
+                                      (preset.sOAH & 0xFFFF) & 0xFF,
+                                      (preset.sOAH >> 16) >> 8,     //upper 16 bytes
+                                      (preset.sOAH >> 16) & 0xFF,
+                                      (preset.sOWH & 0xFFFF) >> 8,
+                                      (preset.sOWH & 0xFFFF) & 0xFF,
+                                      (preset.sOWH >> 16) >> 8,
+                                      (preset.sOWH >> 16) & 0xFF,
+                                      preset.sOTP >> 8,
+                                      preset.sOTP & 0xFF,
+                                      preset.sINI >> 8,
+                                      preset.sINI & 0xFF
+
+  };
+
+  bool response = write_multiple_registers(start_address, MEM_REGS, MEM_REGS * 2, temp_data_buf);
+
+  if(!response) return response;
+
+  return true;
+
 }

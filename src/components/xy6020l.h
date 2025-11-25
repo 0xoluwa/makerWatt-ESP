@@ -16,6 +16,8 @@
  * @author Jens Gleissberg
  * @date 2024
  * @license GNU Lesser General Public License v3.0 or later
+ * 
+ * @edited by: 0xoluwa
  *
  */
 
@@ -61,7 +63,7 @@
 #define HREG_IDX_FC               0x13 //temperature symbol c or f
 
 #define HREG_IDX_BB               0x14 //backlight control
-#define HRED_IDX_SLEEP            0x15 //off screen time
+#define HREG_IDX_SLEEP            0x15 //off screen time
 
 //device details
 #define HREG_IDX_MODEL            0x16
@@ -121,7 +123,7 @@ typedef struct {
 } txRingEle;
 
 typedef struct {
-    uint8_t Nr;
+    uint8_t num;
     uint16_t VSet;
     uint16_t ISet;
     uint16_t sLVP;
@@ -155,21 +157,9 @@ class xy6020l
 
     }
 
-    private:
-      /**
-       * @brief Calculates the crc16 checksum 
-       * @param buf pointer to the data
-       * @param length data length
-       * 
-       * @return crc16 value
-       */
-      uint16_t crc16_calculator(uint8_t *buf, uint8_t length);
+    void begin(){
 
-      bool read_hold_register_data(uint16_t holding_reg_start_addr, uint16_t no_of_register_to_read);
-      bool write_a_single_register(uint16_t reg_address, uint16_t value);
-      bool write_multiple_registers(uint16_t holding_reg_start_addr, uint16_t no_of_register_to_write, uint8_t data_byte_count, uint8_t *value_buf);
-      bool get_all_hold_regs();
-
+    }
       uint16_t get_set_volt(){return (uint16_t) (all_hold_reg_data[HREG_IDX_CV*2] << 8) | (all_hold_reg_data[(HREG_IDX_CV * 2) + 1]);}
       uint16_t get_set_current(){return (uint16_t) (all_hold_reg_data[HREG_IDX_CC *2] << 8) | (all_hold_reg_data[(HREG_IDX_CC * 2) + 1]);}
       uint16_t get_actual_volt(){return (uint16_t) (all_hold_reg_data[HREG_IDX_ACT_V * 2] << 8) | (all_hold_reg_data[(HREG_IDX_ACT_V * 2) + 1]);}
@@ -210,8 +200,40 @@ class xy6020l
       uint16_t get_internal_temp_offset(){return (uint16_t) (all_hold_reg_data[HREG_IDX_TEMP_OFS * 2] << 8) | (all_hold_reg_data[(HREG_IDX_TEMP_OFS * 2) + 1]);}
       uint16_t get_external_temp_offset(){return (uint16_t) (all_hold_reg_data[HREG_IDX_TEMP_EXT_OFS * 2] << 8) | (all_hold_reg_data[(HREG_IDX_TEMP_EXT_OFS * 2) + 1]);}
 
-      uint8_t get_preset(){return all_hold_reg_data[(HREG_IDX_MEMORY * 2) + 1];}
+      uint8_t get_loaded_preset(){return all_hold_reg_data[(HREG_IDX_MEMORY * 2) + 1];}
 
+      bool fetch_preset(tMemory &presetStruct);
+
+      //setter functions
+      bool set_volt(uint16_t value) {return write_a_single_register(HREG_IDX_CV, value);}
+      bool set_current(uint16_t value)  {return write_a_single_register(HREG_IDX_CC, value);}
+      bool set_lock_state(bool value) {return write_a_single_register(HREG_IDX_LOCK, value);}  
+      bool set_protect_state(bool value)  {return write_a_single_register(HREG_IDX_PROTECT, value);}
+      bool set_switch_state(bool value) {return write_a_single_register(HREG_IDX_OUTPUT_ON, value);}
+      bool set_temp_symbol(bool value)  {return write_a_single_register(HREG_IDX_FC, value);}
+      bool set_sleep_time(uint16_t value) {return write_a_single_register(HREG_IDX_SLEEP, value);}
+      bool set_address(uint16_t value)  {return write_a_single_register(HREG_IDX_SLAVE_ADD, value);}
+      bool set_baudrate(uint16_t value) {return write_a_single_register(HREG_IDX_BAUDRATE, value);}
+      bool set_internal_temp_offset(uint16_t value) {return write_a_single_register(HREG_IDX_TEMP_OFS, value);}
+      bool set_external_temp_offset(uint16_t value) {return write_a_single_register(HREG_IDX_TEMP_EXT_OFS, value);}
+      bool switch_preset(uint8_t value) {return write_a_single_register(HREG_IDX_MEMORY, value);}
+
+      bool set_preset(tMemory &presetStruct);
+      
+    private:
+      /**
+       * @brief Calculates the crc16 checksum 
+       * @param buf pointer to the data
+       * @param length data length
+       * 
+       * @return crc16 value
+       */
+      uint16_t crc16_calculator(uint8_t *buf, uint8_t length);
+
+      bool read_hold_register_data(uint16_t holding_reg_start_addr, uint16_t no_of_register_to_read);
+      bool write_a_single_register(uint16_t reg_address, uint16_t value);
+      bool write_multiple_registers(uint16_t holding_reg_start_addr, uint16_t no_of_register_to_write, uint8_t data_byte_count, uint8_t *value_buf);
+      bool get_all_hold_regs();
 
     private:
       Stream *serialHandle;
